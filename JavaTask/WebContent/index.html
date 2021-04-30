@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Java Task Web Interface</title>
+<script src="https://code.jquery.com/jquery-3.5.0.js"></script>
+</head>
+<body>
+
+<h3>Java Task Web Interface</h3>
+
+<form id="detailsForm">
+	<input type="hidden" id="id" name="id" />
+	<input type="text" id="full_name" name="full_name" size="30" placeholder="Full name" /><br>
+	<input type="text" id="pin" name="pin" size="10" placeholder="PIN" /><br>
+	<input type="text" id="email" name="email" size="30" placeholder="Email" /><br>
+	<input type="text" id="address" name="address" size="30" placeholder="Address" /><br>
+	<br>
+	<button id="create">Create</button>
+ 	<button id="modify">Modify</button>
+  	<button id="delete">Delete</button>
+  	<button id="cancel">Cancel</button>
+</form>
+<hr>
+
+<form action="search" id="searchForm">
+	<input type="text" id="term" name="term" size="30" placeholder="Search...">
+  	<input type="submit" value="Search">
+</form>
+<hr>
+
+<div id="results"></div>
+
+<script>
+//
+// Attach a submit handler to the search form
+$( "#searchForm" ).submit(function( event ) {
+	event.preventDefault();	
+	$( "#results" ).empty();
+	//
+	$.ajax({ 
+		type: "POST", 
+		url: $( this ).attr( "action" ), 
+		data: { term: $( "#term" ).val().trim() }, 
+		success: function( data ) {
+			$( "#term" ).val("");	
+			// $( "#result" ).append( "<p class=\"trace\">" + JSON.stringify( data ) + "</p><br><br>");
+			if( data.result != 0 ) { alert( data.error ); }
+			else { createTable( $( "#results" ), data.data ); }
+		}
+	});
+});
+
+
+//
+//Creates a results table
+function createTable( div, data ) {
+	if( !data || data.length == 0 ) { alert( "No records found" ); return; }
+	
+	div.append( '<table">' );
+	div.append( '<tr><th>Full name</th><th>PIN</th><th>Email</th><th>Address</th><th>&nbsp;</th></tr>' );
+	
+	var item;
+	for( i in data ) {
+		item = data[i];
+		div.append( '<tr id="' + item.id + '">' );
+		div.append( "<td>" + item.full_name + "</td>" + 
+					"<td>" + (item.pin ? item.pin : '&nbsp;') + "</td>" + 
+					"<td>" + (item.email ? item.email : '&nbsp;') + "</td>" + 
+					"<td>" + (item.address ? item.address : '&nbsp;') + "</td>" );
+		div.append( '<td><button onclick="edit(' + item.id + ')">edit</button>' );
+		div.append( '</tr>' );
+	}
+	div.append( '</table>' );
+}
+
+
+//
+// Create
+$( "#create" ).click(function( event ) {
+	event.preventDefault();
+	$.ajax({
+		type: "POST", 
+		url: "create",
+		data: getData(),
+		success: function( data ) {
+			if( data.result != 0 ) { alert( data.error ); }
+			else {
+				clear();
+				alert( "The record was created successfully" );
+			}
+		}
+	});
+});
+
+
+// Record modify or delete
+function edit( id ) {
+	clear();
+	$( "#results" ).empty(); // clear results
+	// Get record data by id
+	$.ajax({ 
+		type: "POST", 
+		url: "modify", 
+		data: { id: id }, 
+		success: function( data ) {
+			if( data.result != 0 ) { alert( data.error ); }
+			else {
+				// fill details form
+				for( k in data.data ) { $( "#" + k ).val( data.data[k] ); }
+			}
+			// alert( JSON.stringify( data ) );
+		}
+	});
+}
+
+// Modify
+$( "#modify" ).click(function( event ) {
+	event.preventDefault();
+	if(!$( "#id" ).val()) { alert( "No record selected" ); return; }
+	//
+	$.ajax({ 
+		type: "POST", 
+		url: "modify", 
+		data: getData(), 
+		success: function( data ) {
+			if( data.result != 0 ) { alert( data.error ); }
+			else { 
+				clear();
+				alert( "Successful changed" ); 
+			}
+		}
+	});
+});
+
+// Delete
+$( "#delete" ).click(function( event ) {
+	event.preventDefault();
+	if(!$( "#id" ).val()) { alert( "No record selected" ); return; }
+	var id = $( "#id" ).val();
+	// Get data of entry by id and confirm delete message
+	$.ajax({ 
+		type: "POST", 
+		url: "delete", 
+		data: { id: id }, 
+		success: function( data ) {
+			if( data.result > 0 ) { alert( data.error ); }
+			else {
+				if( confirm( data.confirm )) {
+					
+					// Delete the entry
+					$.ajax({
+						type: "POST", 
+						url: "delete", 
+						data: { id: id, confirm: true }, 
+						success: function( data ) {
+							if( data.result > 0 ) { alert( data.error ); }
+							else {
+								clear();
+								alert( "Successful deleted" ); 
+							}
+						}
+					});
+				}
+			}
+		}
+	});
+});
+
+// Cancel
+$( "#cancel" ).click(function( event ) {
+	event.preventDefault();
+	clear();
+});
+
+// Load data from details form
+function getData() {
+	var data = {};
+	var ids = ["id", "full_name", "pin", "email", "address"];
+	for( i in ids ) {
+		value = $("#" + ids[i] ).val().trim(); 
+		if( value != "") { data[ids[i]] = value; }
+	}
+	return data;
+}
+
+// Clear form details
+function clear() { 
+	$( "#id, #full_name, #pin, #email, #address" ).val("");
+}
+</script>
+</body>
+</html>
